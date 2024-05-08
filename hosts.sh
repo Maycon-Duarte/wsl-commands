@@ -18,12 +18,9 @@ else
     exit 1
 fi
 
-# Caminho para o arquivo hosts do Windows
-WINDOWS_HOSTS_FILE="/mnt/c/Windows/System32/drivers/etc/hosts"
-
 # Verificar se o arquivo hosts do Windows existe
-if [ ! -f "$WINDOWS_HOSTS_FILE" ]; then
-    echo -e "${RED}Arquivo hosts do Windows não encontrado em $WINDOWS_HOSTS_FILE${NC}"
+if [ ! -f "$HOSTS_FILE" ]; then
+    echo -e "${RED}Arquivo hosts do Windows não encontrado em $HOSTS_FILE${NC}"
     exit 1
 fi
 
@@ -32,13 +29,13 @@ add_host() {
     local domain=$1
     
     # Verificar se o domínio já existe no arquivo hosts
-    if grep -q "$domain" "$WINDOWS_HOSTS_FILE"; then
+    if grep -q "$domain" "$HOSTS_FILE"; then
         echo -e "${RED}O domínio $domain já está presente no arquivo hosts do Windows.${NC}"
         return
     fi
 
     # Adicionar o domínio ao arquivo hosts
-    echo "127.0.0.1 $domain" | sudo tee -a "$WINDOWS_HOSTS_FILE" > /dev/null
+    echo "127.0.0.1 $domain" | sudo tee -a "$HOSTS_FILE" > /dev/null
 
     echo -e "${GREEN}Domínio $domain adicionado ao arquivo hosts do Windows com sucesso.${NC}"
 }
@@ -49,13 +46,13 @@ remove_host() {
 
     # Criar uma cópia temporária do arquivo hosts
     TEMP_FILE=$(mktemp)
-    sudo cp "$WINDOWS_HOSTS_FILE" "$TEMP_FILE"
+    sudo cp "$HOSTS_FILE" "$TEMP_FILE"
 
     # Remover o domínio do arquivo hosts
     sudo sed -i "/$domain/d" "$TEMP_FILE"
     
     # Substituir o arquivo hosts original com a cópia modificada
-    sudo cp "$TEMP_FILE" "$WINDOWS_HOSTS_FILE"
+    sudo cp "$TEMP_FILE" "$HOSTS_FILE"
 
     echo -e "${GREEN}Domínio $domain removido do arquivo hosts do Windows com sucesso.${NC}"
 }
