@@ -1,12 +1,22 @@
 #!/bin/bash
 
-# Carregar variáveis de ambiente do arquivo .env
-source .env
-
 # Cores
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
+
+# Caminho para o arquivo .env
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env"
+
+# Verificar se o arquivo .env existe
+if [ -f "$ENV_FILE" ]; then
+    # Carregar as variáveis de ambiente do arquivo .env
+    source "$ENV_FILE"
+else
+    echo -e "${RED}Arquivo .env não encontrado em $ENV_FILE${NC}"
+    exit 1
+fi
 
 # Comando para adicionar certificado SSL
 add_ssl() {
@@ -19,7 +29,7 @@ add_ssl() {
     fi
 
     # Executar o Certbot para obter o certificado SSL
-    sudo certbot certonly --standalone -d "$domain" --email "$SSL_EMAIL" --agree-tos
+    sudo certbot --nginx -d "$domain" --non-interactive --agree-tos -m "$SSL_EMAIL"
 
     # Verificar se o certificado SSL foi obtido com sucesso
     if [ $? -eq 0 ]; then

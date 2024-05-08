@@ -48,8 +48,6 @@ server {
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
     }
-
-    # Outras configurações...
 }
 EOF
 
@@ -71,6 +69,11 @@ EOF
     if [ "$HOSTS_ACTIVE" == "true" ]; then
         # Chama o script hosts.sh para adicionar o domínio ao arquivo hosts do Windows
        "$SCRIPT_DIR/hosts.sh" add "$domain"    
+    fi    
+
+    if [ "$SSL_ACTIVE" == "true" ]; then
+        # Chama o script hosts.sh para adicionar o domínio ao arquivo hosts do Windows
+       "$SCRIPT_DIR/ssl.sh" add "$domain"    
     fi    
 }
 
@@ -104,7 +107,11 @@ remove_domain() {
         # Chama o script hosts.sh para remover o domínio do arquivo hosts do Windows
         "$SCRIPT_DIR/hosts.sh" remove "$domain"        
     fi
-    
+
+    # if [ "$SSL_ACTIVE" == "true" ]; then
+    #     # Chama o script hosts.sh para adicionar o domínio ao arquivo hosts do Windows
+    #     #"$SCRIPT_DIR/ssl.sh" remove "$domain"    
+    # fi       
 }
 
 # Ajuda do script
