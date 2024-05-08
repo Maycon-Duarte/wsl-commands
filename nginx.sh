@@ -68,8 +68,10 @@ EOF
 
     echo -e "${GREEN}Domínio $domain adicionado com sucesso ao NGINX.${NC}"
 
-    # Chama o script hosts.sh para adicionar o domínio ao arquivo hosts do Windows
-    "$SCRIPT_DIR/hosts.sh" add "$domain"
+    if [ "$HOSTS_ACTIVE" == "true" ]; then
+        # Chama o script hosts.sh para adicionar o domínio ao arquivo hosts do Windows
+       "$SCRIPT_DIR/hosts.sh" add "$domain"    
+    fi    
 }
 
 # Remove um domínio do NGINX
@@ -98,8 +100,11 @@ remove_domain() {
 
     echo -e "${RED}Domínio $domain removido com sucesso do NGINX.${NC}"
 
-    # Chama o script hosts.sh para remover o domínio do arquivo hosts do Windows
-    "$SCRIPT_DIR/hosts.sh" remove "$domain"
+    if [ "$HOSTS_ACTIVE" == "true" ]; then
+        # Chama o script hosts.sh para remover o domínio do arquivo hosts do Windows
+        "$SCRIPT_DIR/hosts.sh" remove "$domain"        
+    fi
+    
 }
 
 # Ajuda do script

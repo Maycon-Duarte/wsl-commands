@@ -59,7 +59,7 @@ case $command in
         "$NGINX_SCRIPT" add "$domain"
 
         # Criar um banco de dados com prefixo "wp" e um usuário "user" com senha aleatória
-        db_name="wp_${domain//./_}"
+        db_name="wp_${domain//[-.]/_}"  
 
         # Adicionar o domínio ao banco de dados
         "$DB_SCRIPT" create "$db_name"
@@ -102,7 +102,7 @@ case $command in
         "$NGINX_SCRIPT" remove "$domain"
 
         # Remover o banco de dados associado ao domínio
-        db_name="wp_${domain//./_}"
+        db_name="wp_${domain//[-.]/_}"
         "$DB_SCRIPT" remove "$db_name"
 
         # Remover o diretório do domínio
