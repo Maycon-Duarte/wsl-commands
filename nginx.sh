@@ -71,6 +71,11 @@ EOF
        "$SCRIPT_DIR/hosts.sh" add "$domain"    
     fi    
 
+    if [ "$AWS_CLI_ACTIVE" == "true" ]; then
+        # Chama o script hosts.sh para remover o domínio do arquivo hosts do Windows
+        "$SCRIPT_DIR/route53.sh" add "$domain"        
+    fi
+
     if [ "$SSL_ACTIVE" == "true" ]; then
         # Chama o script hosts.sh para adicionar o domínio ao arquivo hosts do Windows
        "$SCRIPT_DIR/ssl.sh" add "$domain"    
@@ -106,6 +111,11 @@ remove_domain() {
     if [ "$HOSTS_ACTIVE" == "true" ]; then
         # Chama o script hosts.sh para remover o domínio do arquivo hosts do Windows
         "$SCRIPT_DIR/hosts.sh" remove "$domain"        
+    fi
+
+    if [ "$AWS_CLI_ACTIVE" == "true" ]; then
+        # Chama o script hosts.sh para remover o domínio do arquivo hosts do Windows
+        "$SCRIPT_DIR/route53.sh" remove "$domain"        
     fi
 
     # if [ "$SSL_ACTIVE" == "true" ]; then
