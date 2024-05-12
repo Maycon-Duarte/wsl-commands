@@ -17,12 +17,6 @@ add_dns_record() {
     local domain=$1
     local ip_address=$AWS_DOMAIN_IP
 
-    # Verificar se o registro já existe
-    if aws route53 list-resource-record-sets --hosted-zone-id "$AWS_HOSTED_ZONE_ID" --query "ResourceRecordSets[?Name == '$domain' && Type == 'A']" | grep -q "ResourceRecordSets"; then
-        echo -e "${RED}O registro DNS para $domain já existe no Route 53.${NC}"
-        return
-    fi
-
     # Comando para adicionar registro DNS no Route 53
     aws route53 change-resource-record-sets --hosted-zone-id "$AWS_HOSTED_ZONE_ID" --change-batch '{
         "Changes": [
@@ -51,7 +45,7 @@ add_dns_record() {
 # Função para esperar a propagação do DNS
 wait_for_dns_propagation() {
     local domain=$1
-    local timeout=300  # Tempo limite em segundos
+    local timeout=60  # Tempo limite em segundos
     local start_time=$(date +%s)
     local end_time=$((start_time + timeout))
 
@@ -81,12 +75,6 @@ wait_for_dns_propagation() {
 remove_dns_record() {
     local domain=$1
     local ip_address=$AWS_DOMAIN_IP
-
-    # Verificar se o registro existe antes de remover
-    if ! aws route53 list-resource-record-sets --hosted-zone-id "$AWS_HOSTED_ZONE_ID" --query "ResourceRecordSets[?Name == '$domain' && Type == 'A']" | grep -q "ResourceRecordSets"; then
-        echo -e "${RED}O registro DNS para $domain não existe no Route 53.${NC}"
-        return
-    fi
 
     # Comando para remover registro DNS no Route 53
     aws route53 change-resource-record-sets --hosted-zone-id "$AWS_HOSTED_ZONE_ID" --change-batch '{
