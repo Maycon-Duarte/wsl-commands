@@ -39,6 +39,8 @@ server {
     index index.php index.html index.htm;
     client_max_body_size 12G;
 
+    client_max_body_size 6G;
+
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
