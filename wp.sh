@@ -8,6 +8,18 @@ ENV_FILE="$SCRIPT_DIR/.env"
 if [ -f "$ENV_FILE" ]; then
     # Carregar as variáveis de ambiente do arquivo .env
     source "$ENV_FILE"
+    
+    # Converter a string de plugins em array
+    if [ -n "$WP_DEFAULT_PLUGINS" ]; then
+        IFS=',' read -ra DEFAULT_PLUGINS <<< "$WP_DEFAULT_PLUGINS"
+        # Remover espaços em branco dos elementos do array
+        for i in "${!DEFAULT_PLUGINS[@]}"; do
+            DEFAULT_PLUGINS[$i]=$(echo "${DEFAULT_PLUGINS[$i]}" | xargs)
+        done
+    else
+        # Array vazio se não houver plugins definidos
+        DEFAULT_PLUGINS=()
+    fi
 else
     GREEN='\033[0;32m'
     RED='\033[0;31m'
@@ -36,12 +48,94 @@ if ! command -v wp &> /dev/null; then
     exit 1
 fi
 
+# Função para instalar plugins padrão
+install_default_plugins() {
+    local wp_path="$1"
+    shift # Remove o primeiro argumento (wp_path)
+    local additional_plugins=("$@") # Captura plugins adicionais
+    
+    # Instalar plugins padrão se configurados
+    if [ ${#DEFAULT_PLUGINS[@]} -gt 0 ]; then
+        echo -e "${GREEN}Instalando plugins padrão...${NC}"
+        
+        for plugin in "${DEFAULT_PLUGINS[@]}"; do
+            if [ -n "$plugin" ]; then  # Verifica se o plugin não está vazio
+                echo -e "${GREEN}Instalando plugin padrão: $plugin${NC}"
+                wp plugin install "$plugin" --activate --path="$wp_path" --allow-root
+                status=$?
+                if [ $status -eq 0 ]; then
+                    echo -e "${GREEN}Plugin $plugin instalado e ativado com sucesso${NC}"
+                else
+                    # Tenta instalar via ZIP local se não encontrar no repositório
+                    local_zip="$SCRIPT_DIR/plugins/${plugin}.zip"
+                    if [ -f "$local_zip" ]; then
+                        echo -e "${YELLOW}Plugin $plugin não encontrado no repositório. Instalando via ZIP local: $local_zip${NC}"
+                        wp plugin install "$local_zip" --activate --path="$wp_path" --allow-root
+                        if [ $? -eq 0 ]; then
+                            echo -e "${GREEN}Plugin $plugin instalado via ZIP com sucesso${NC}"
+                        else
+                            echo -e "${RED}Erro ao instalar o plugin $plugin via ZIP${NC}"
+                        fi
+                    else
+                        echo -e "${RED}Erro ao instalar o plugin $plugin: não encontrado no repositório nem na pasta plugins${NC}"
+                    fi
+                fi
+            fi
+        done
+    else
+        echo -e "${GREEN}Nenhum plugin padrão configurado no .env${NC}"
+    fi
+    
+    # Instalar plugins adicionais se fornecidos
+    if [ ${#additional_plugins[@]} -gt 0 ]; then
+        echo -e "${GREEN}Instalando plugins adicionais...${NC}"
+        for plugin in "${additional_plugins[@]}"; do
+            if [ -n "$plugin" ]; then  # Verifica se o plugin não está vazio
+                echo -e "${GREEN}Instalando plugin adicional: $plugin${NC}"
+                wp plugin install "$plugin" --activate --path="$wp_path" --allow-root
+                status=$?
+                if [ $status -eq 0 ]; then
+                    echo -e "${GREEN}Plugin adicional $plugin instalado e ativado com sucesso${NC}"
+                else
+                    # Tenta instalar via ZIP local se não encontrar no repositório
+                    local_zip="$SCRIPT_DIR/plugins/${plugin}.zip"
+                    if [ -f "$local_zip" ]; then
+                        echo -e "${YELLOW}Plugin adicional $plugin não encontrado no repositório. Instalando via ZIP local: $local_zip${NC}"
+                        wp plugin install "$local_zip" --activate --path="$wp_path" --allow-root
+                        if [ $? -eq 0 ]; then
+                            echo -e "${GREEN}Plugin adicional $plugin instalado via ZIP com sucesso${NC}"
+                        else
+                            echo -e "${RED}Erro ao instalar o plugin adicional $plugin via ZIP${NC}"
+                        fi
+                    else
+                        echo -e "${RED}Erro ao instalar o plugin adicional $plugin: não encontrado no repositório nem na pasta plugins${NC}"
+                    fi
+                fi
+            fi
+        done
+    fi
+}
+
 # Verificar se o número de argumentos está correto
 if [ $# -lt 2 ]; then
-    echo "Uso: wp [comando] [domínio]"
+    echo "Uso: wp [comando] [domínio] [plugins_adicionais...]"
     echo "Comandos:"
     echo "  add    - adiciona um novo site WordPress"
     echo "  remove - remove um site WordPress existente"
+    echo ""
+    echo "Plugins padrão que serão instalados automaticamente (definidos no .env):"
+    if [ ${#DEFAULT_PLUGINS[@]} -eq 0 ]; then
+        echo "  Nenhum plugin padrão configurado"
+    else
+        for plugin in "${DEFAULT_PLUGINS[@]}"; do
+            echo "  - $plugin"
+        done
+    fi
+    echo ""
+    echo "Exemplo com plugins adicionais:"
+    echo "  wp add exemplo.com elementor woocommerce"
+    echo ""
+    echo "Para configurar plugins padrão, edite a variável WP_DEFAULT_PLUGINS no arquivo .env"
     exit 1
 fi
 
@@ -52,6 +146,19 @@ NC='\033[0m' # No Color
 
 command=$1
 domain=$2
+# Capturar plugins adicionais e .wpress (se houver)
+shift 2 # Remove comando e domínio dos argumentos
+wpress_file=""
+if [ $# -gt 0 ]; then
+    last_arg="${!#}"
+    if [[ "$last_arg" == *.wpress ]]; then
+        wpress_file="$last_arg"
+        # Remove o último argumento do array de plugins
+        unset "@"
+        set -- "${@:1:$(($#-1))}"
+    fi
+fi
+additional_plugins=("$@") # Todos os argumentos restantes são plugins adicionais
 
 case $command in
     add)
@@ -80,6 +187,20 @@ case $command in
         # Instalar o WordPress
         wp core install --url="http://$domain" --title="My WordPress Site" --admin_user="${wp_user}" --admin_password="${wp_password}" --admin_email="admin@$domain" --path="$NGINX_ROOT_DIR/$domain" --allow-root
 
+
+
+        # Instalar plugins padrão somente se o wp-config.php existir
+        if [ -f "$NGINX_ROOT_DIR/$domain/wp-config.php" ]; then
+            install_default_plugins "$NGINX_ROOT_DIR/$domain" "${additional_plugins[@]}"
+        else
+            echo -e "${RED}wp-config.php não encontrado. Plugins não serão instalados.${NC}"
+        fi
+
+        # Importar .wpress se informado
+        if [ -n "$wpress_file" ]; then
+            "$SCRIPT_DIR/import-wpress.sh" "$NGINX_ROOT_DIR/$domain" "$wpress_file"
+        fi
+
         # muda o proprietário do diretório do site para o usuário www-data
         chown -R www-data:www-data "$NGINX_ROOT_DIR/$domain"
         chmod -R 755 "$NGINX_ROOT_DIR/$domain"
@@ -95,7 +216,7 @@ case $command in
         echo "Senha do WordPress: $wp_password" >> "$NGINX_ROOT_DIR/$domain/wordpress_credentials.txt"
 
         # Mensagem de conclusão
-        echo -e "${GREEN}WordPress instalado com sucesso em http://$domain${NC}"
+        echo -e "${GREEN}WordPress instalado com sucesso em http://$domain/wp-admin${NC}"
         ;;
     remove)
         # Remover o domínio do NGINX
